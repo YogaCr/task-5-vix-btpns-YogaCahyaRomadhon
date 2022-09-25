@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 	"golang.org/x/crypto/bcrypt"
 	"net/http"
 	"task-5-vix-btpns-Yoga_Cahya_Romadhon/helpers"
@@ -9,18 +10,33 @@ import (
 )
 
 type RegisInput struct {
-	Name     string `json:"name" binding:"required"`
-	Email    string `json:"email" binding:"required"`
-	Password string `json:"password" binding:"required"`
+	Name     string `json:"name" validate:"required"`
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required,min=6"`
+}
+
+type LoginInput struct {
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required"`
 }
 
 func (s *Server) CreateUser(c *gin.Context) {
-	var user models.User
-	if err := c.ShouldBindJSON(&user); err != nil {
+	var input RegisInput
+	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	validate := validator.New()
+	err := validate.Struct(input)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "input does not match the criteria"})
+		return
+	}
 
+	user := models.User{}
+	user.Name = input.Name
+	user.Email = input.Email
+	user.Password = input.Password
 	if err := s.DB.Create(&user).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -30,9 +46,16 @@ func (s *Server) CreateUser(c *gin.Context) {
 }
 
 func (s *Server) Login(c *gin.Context) {
-	var input models.User
+	var input LoginInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	validate := validator.New()
+	err := validate.Struct(input)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "input does not match the criteria"})
 		return
 	}
 
